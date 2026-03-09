@@ -409,7 +409,8 @@
 
           try {
             const start = performance.now();
-            const { canvas, dataUrl } = await scanner.scan(img);
+            const useEdgeCleanup = document.getElementById("edge-cleanup").checked;
+            const { canvas, dataUrl } = await scanner.scan(img, { inset: useEdgeCleanup ? 0.02 : 0 });
             const end = performance.now();
 
             resultCanvas = canvas;

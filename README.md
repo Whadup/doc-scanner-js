@@ -57,9 +57,26 @@ function App() {
 ```javascript
 import { DocScanner } from './doc-scanner.js';
 
-const scanner = new DocScanner("doc-scanner-js.onnx");
+// Set a default inset of 2% for all scans
+const scanner = new DocScanner("doc-scanner-js.onnx", { inset: 0.02 });
 await scanner.init();
+
+// Or override per scan
+const { canvas } = await scanner.scan(img, { inset: 0.03 });
 ```
+
+## API Reference
+
+### `DocScanner`
+- `constructor(modelPath, options)`
+  - `options.inset`: (Default `0`) Ratio (0 to 1) to inset the final crop. Recommended `0.02` (2%) to remove corner glitches.
+- `init()`: Loads the model and initializes OpenCV.
+- `scan(imageSource, options)`: Returns `{ canvas, debugCanvas, blob, dataUrl }`.
+  - `options.inset`: Overrides the default inset for this specific scan.
+- `dispose()`: Releases WASM memory.
+
+### `useDocScanner(modelPath, options)`
+- `scan(source, options)`: The scan function. Supports `{ inset }` overrides.
 
 ---
 

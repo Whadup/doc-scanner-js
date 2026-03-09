@@ -14,6 +14,7 @@ export class DocScanner {
         this.modelPath = modelPath;
         this.inputWidth = options.inputWidth || INPUT_WIDTH;
         this.inputHeight = options.inputHeight || INPUT_HEIGHT;
+        this.inset = options.inset || 0; // Default inset ratio (0-1)
         this.session = null;
         this._cvReady = false;
     }
@@ -54,8 +55,10 @@ export class DocScanner {
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} imageSource
      * @returns {Promise<{ canvas: HTMLCanvasElement, debugCanvas: HTMLCanvasElement, blob: Blob, dataUrl: string }>}
      */
-    async scan(imageSource) {
+    async scan(imageSource, options = {}) {
         if (!this.session) throw new Error("Call init() first");
+
+        const inset = options.inset !== undefined ? options.inset : this.inset;
 
         const src = cv.imread(imageSource);
         const origH = src.rows;
@@ -144,11 +147,44 @@ export class DocScanner {
         const dataUrl = canvas.toDataURL("image/png");
         const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
 
+        // 6. Optional Inset (Crop)
+        let finalCanvas = canvas;
+        let finalBlob = blob;
+        let finalDataUrl = dataUrl;
+
+        if (inset > 0) {
+            const insetX = Math.floor(origW * inset);
+            const insetY = Math.floor(origH * inset);
+            const newW = origW - 2 * insetX;
+            const newH = origH - 2 * insetY;
+
+            if (newW > 0 && newH > 0) {
+                const roi = new cv.Rect(insetX, insetY, newW, newH);
+                const croppedMat = resultRGBA.roi(roi);
+
+                const cropCanvas = document.createElement("canvas");
+                cropCanvas.width = newW;
+                cropCanvas.height = newH;
+                cv.imshow(cropCanvas, croppedMat);
+
+                finalCanvas = cropCanvas;
+                finalDataUrl = cropCanvas.toDataURL("image/png");
+                finalBlob = await new Promise(resolve => cropCanvas.toBlob(resolve, "image/png"));
+                croppedMat.delete();
+            }
+        }
+
         // Cleanup
         src.delete();
         resultRGBA.delete();
 
-        return { canvas, debugCanvas, blob, dataUrl };
+        return {
+            canvas: finalCanvas,
+            debugCanvas: debugCanvas,
+            blob: finalBlob,
+            dataUrl: finalDataUrl,
+            originalCanvas: canvas // preserve original for reference
+        };
     }
 
     _generateDebugCanvas(bmData, width, height) {

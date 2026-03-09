@@ -44,11 +44,11 @@ export function useDocScanner(modelPath, options = {}) {
         };
     }, [modelPath, JSON.stringify(options)]);
 
-    const scan = useCallback(async (source) => {
+    const scan = useCallback(async (source, scanOptions = {}) => {
         if (!scannerRef.current || !isReady) {
             throw new Error("Scanner not ready");
         }
-        return await scannerRef.current.scan(source);
+        return await scannerRef.current.scan(source, scanOptions);
     }, [isReady]);
 
     return { scan, isReady, isLoading, error };
