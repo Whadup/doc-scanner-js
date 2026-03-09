@@ -1,7 +1,7 @@
 {
     "name": "doc-scanner-js",
     "version": "1.0.0",
-    "description": "High-performance SOTA document dewarping in the browser via UVDoc and ONNX Runtime Web.",
+    "description": "High-performance document dewarping in the browser via a small machine learning model.",
     "type": "module",
     "main": "doc-scanner.js",
     "module": "doc-scanner.js",

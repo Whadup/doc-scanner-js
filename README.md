@@ -87,16 +87,6 @@ import { useDocScanner } from 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js
 
 ---
 
-## Publishing to NPM
-
-To make this library available to the community:
-
-1. **Login**: `npm login`
-2. **Publish**: `npm publish`
-
-Once published, CDNs will automatically serve your files at:
-- `https://unpkg.com/doc-scanner-js/`
-- `https://cdn.jsdelivr.net/npm/doc-scanner-js/`
 An interactive drop-zone demo is structurally provided in [`index.html`](index.html).
 
 Start a local server to view the demonstration:
