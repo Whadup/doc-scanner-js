@@ -54,14 +54,47 @@ function App() {
 }
 ```
 
-## Vanilla JavaScript (ESM)
-
 ```javascript
 import { DocScanner } from './doc-scanner.js';
 
 const scanner = new DocScanner("doc-scanner-js.onnx");
 await scanner.init();
 ```
+
+---
+
+## CDN Usage (No Install)
+
+You can use the library directly in the browser via **unpkg** or **jsDelivr**. Since the `.onnx` model is included in the package, you can load it directly from the CDN as well.
+
+### 1. Simple Script Tag (ESM)
+```html
+<script type="module">
+  import { DocScanner } from 'https://unpkg.com/doc-scanner-js/doc-scanner.js';
+
+  const scanner = new DocScanner('https://unpkg.com/doc-scanner-js/doc-scanner-js.onnx');
+  await scanner.init();
+  
+  // ... scan logic ...
+</script>
+```
+
+### 2. Using jsDelivr (GitHub Proxy)
+If you just tagged a release on GitHub, you can use jsDelivr:
+`https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner-js.onnx`
+
+---
+
+## Publishing to NPM
+
+To make this library available to the community:
+
+1. **Login**: `npm login`
+2. **Publish**: `npm publish`
+
+Once published, CDNs will automatically serve your files at:
+- `https://unpkg.com/doc-scanner-js/`
+- `https://cdn.jsdelivr.net/npm/doc-scanner-js/`
 An interactive drop-zone demo is structurally provided in [`index.html`](index.html).
 
 Start a local server to view the demonstration:

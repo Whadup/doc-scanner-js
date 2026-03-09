@@ -1,0 +1,32 @@
+{
+    "name": "doc-scanner-js",
+    "version": "1.0.0",
+    "description": "High-performance SOTA document dewarping in the browser via UVDoc and ONNX Runtime Web.",
+    "type": "module",
+    "main": "doc-scanner.js",
+    "module": "doc-scanner.js",
+    "files": [
+        "doc-scanner.js",
+        "react-hook.js",
+        "doc-scanner-js.onnx",
+        "README.md"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Whadup/doc-scanner-js.git"
+    },
+    "keywords": [
+        "document-scanner",
+        "dewarping",
+        "onnx",
+        "uvdoc",
+        "opencv",
+        "browser",
+        "react"
+    ],
+    "author": "Antigravity AI",
+    "license": "MIT",
+    "peerDependencies": {
+        "onnxruntime-web": "^1.17.0"
+    }
+}
