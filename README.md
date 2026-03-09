@@ -1,11 +1,11 @@
-# ONNX Document Scanner (UVDoc)
+# doc-scanner-js
 
-A high-performance, client-side document dewarping library for modern web applications. Powered by **UVDoc** (State-of-the-Art) running natively in the browser via **ONNX Runtime Web** and **OpenCV.js**.
+A high-performance, client-side document dewarping library for modern web applications. Powered by a small machine learning model running natively in the browser via **ONNX Runtime Web** and **OpenCV.js**.
 
 ## Features
 - **Client-side Processing**: No server-side processing or data transmission.
-- **SOTA Fidelity**: Uses UVDoc for superior geometric rectification.
-- **Optimized**: 7.6MB quantized INT8 model for fast web delivery.
+- **High Fidelity**: Specialized geometric rectification model.
+- **Optimized**: 7.6MB quantized model for fast web delivery.
 - **Modern API**: ESM-first with a dedicated React Hook.
 
 ## Installation
