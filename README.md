@@ -70,18 +70,20 @@ You can use the library directly in the browser via **unpkg** or **jsDelivr**. S
 ### 1. Simple Script Tag (ESM)
 ```html
 <script type="module">
-  import { DocScanner } from 'https://unpkg.com/doc-scanner-js/doc-scanner.js';
+  // Load the library directly from jsDelivr (GitHub Proxy)
+  import { DocScanner } from 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner.js';
 
-  const scanner = new DocScanner('https://unpkg.com/doc-scanner-js/doc-scanner-js.onnx');
+  const scanner = new DocScanner('https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner-js.onnx');
   await scanner.init();
   
   // ... scan logic ...
 </script>
 ```
 
-### 2. Using jsDelivr (GitHub Proxy)
-If you just tagged a release on GitHub, you can use jsDelivr:
-`https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner-js.onnx`
+### 2. Using the React Hook via CDN
+```javascript
+import { useDocScanner } from 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/react-hook.js';
+```
 
 ---
 
