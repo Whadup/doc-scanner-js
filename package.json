@@ -19,7 +19,6 @@
         "document-scanner",
         "dewarping",
         "onnx",
-        "uvdoc",
         "opencv",
         "browser",
         "react"
