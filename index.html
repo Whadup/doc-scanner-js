@@ -294,6 +294,12 @@
     <div id="drop-zone">
       <div class="icon">📄</div>
       <div class="label">Drop a document photo here</div>
+      <div
+        style="margin-top: 15px; font-size: 0.9rem; color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: 8px;"
+        onclick="event.stopPropagation()">
+        <input type="checkbox" id="edge-cleanup" checked>
+        <label for="edge-cleanup">Apply Edge Cleanup (2% Inset)</label>
+      </div>
       <div class="sub">or click to browse · JPG, PNG, WebP</div>
     </div>
     <input type="file" id="file-input" accept="image/*" />
@@ -330,8 +336,7 @@
     // Configure ONNX Runtime WASM paths
     ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/";
   </script>
-  <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCVReady()" type="text/javascript">
-  </script>
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js" type="text/javascript"></script>
 
   <script type="module">
     import { DocScanner } from './doc-scanner.js';
@@ -354,13 +359,25 @@
     const btnDownload = document.getElementById("btn-download");
     const btnNew = document.getElementById("btn-new");
 
-    // ── OpenCV ready callback ─────────────────────────────────────────
-    window.onOpenCVReady = async function () {
-      if (typeof cv !== "undefined" && typeof cv.Mat === "undefined") {
+    // ── Initialization ───────────────────────────────────────────────
+    async function start() {
+      if (typeof cv === "undefined" || !cv.Mat) {
+        initStatus.textContent = "Loading OpenCV.js…";
         await new Promise((resolve) => {
-          cv["onRuntimeInitialized"] = resolve;
+          if (typeof cv !== "undefined") {
+            cv["onRuntimeInitialized"] = resolve;
+          } else {
+            // Poll for cv defined
+            const interval = setInterval(() => {
+              if (typeof cv !== "undefined") {
+                clearInterval(interval);
+                cv["onRuntimeInitialized"] = resolve;
+              }
+            }, 50);
+          }
         });
       }
+
       initStatus.textContent = "Loading AI model…";
       try {
         scanner = new DocScanner("doc-scanner-js.onnx");
@@ -370,10 +387,9 @@
         initStatus.textContent = "⚠ Failed to load model: " + e.message;
         console.error(e);
       }
-    };
+    }
 
-    // If already loaded
-    if (typeof cv !== 'undefined' && cv.Mat) window.onOpenCVReady();
+    start();
 
     // ── Event Handlers ────────────────────────────────────────────────
     dropZone.addEventListener("click", () => fileInput.click());
