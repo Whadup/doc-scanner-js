@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Document Scanner — AI-powered document dewarping in the browser" />
+  <title>Document Scanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0e14;
+      --surface: rgba(255, 255, 255, 0.04);
+      --surface-2: rgba(255, 255, 255, 0.07);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #e4e6ed;
+      --text-dim: #8b8fa3;
+      --accent: #6c8cff;
+      --accent-glow: rgba(108, 140, 255, 0.25);
+      --success: #3dd68c;
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      text-align: center;
+      padding: 3rem 1rem 1.5rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6c8cff, #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+    }
+
+    main {
+      width: 100%;
+      max-width: 1200px;
+      padding: 0 1.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    /* ── Drop Zone ─────────────────────────────────────── */
+    #drop-zone {
+      width: 100%;
+      max-width: 600px;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: var(--surface);
+    }
+
+    #drop-zone:hover,
+    #drop-zone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    #drop-zone .icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    #drop-zone .label {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    #drop-zone .sub {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-top: 0.4rem;
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    /* ── Status Bar ────────────────────────────────────── */
+    #status-bar {
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--surface-2);
+      border-radius: 100px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    #status-bar.visible {
+      display: flex;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .check-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--success);
+    }
+
+    /* ── Results ───────────────────────────────────────── */
+    #results {
+      display: none;
+      width: 100%;
+      gap: 1.5rem;
+    }
+
+    #results.visible {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 0.75rem 1rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-body {
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 200px;
+      background: repeating-conic-gradient(rgba(255, 255, 255, 0.02) 0% 25%, transparent 0% 50%) 50% / 20px 20px;
+    }
+
+    .panel-body img,
+    .panel-body canvas {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 8px;
+    }
+
+    /* ── Actions ───────────────────────────────────────── */
+    #actions {
+      display: none;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    #actions.visible {
+      display: flex;
+    }
+
+    .btn {
+      padding: 0.65rem 1.5rem;
+      border: none;
+      border-radius: 100px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6c8cff, #8b5cf6);
+      color: #fff;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* ── Init Overlay ─────────────────────────────────── */
+    #init-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(12, 14, 20, 0.92);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      z-index: 100;
+      transition: opacity 0.4s ease;
+    }
+
+    #init-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #init-overlay .spinner {
+      width: 32px;
+      height: 32px;
+      border-width: 3px;
+    }
+
+    #init-overlay p {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+
+    /* ── Responsive ────────────────────────────────────── */
+    @media (max-width: 768px) {
+      #results.visible {
+        grid-template-columns: 1fr;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading overlay shown while OpenCV + ONNX model initialize -->
+  <div id="init-overlay">
+    <div class="spinner"></div>
+    <p id="init-status">Loading OpenCV.js…</p>
+  </div>
+
+  <header>
+    <h1>Document Scanner</h1>
+    <p>AI-powered document dewarping — runs entirely in your browser</p>
+  </header>
+
+  <main>
+    <div id="drop-zone">
+      <div class="icon">📄</div>
+      <div class="label">Drop a document photo here</div>
+      <div class="sub">or click to browse · JPG, PNG, WebP</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*" />
+
+    <div id="status-bar">
+      <div class="spinner"></div>
+      <span id="status-text">Processing…</span>
+    </div>
+
+    <div id="results">
+      <div class="panel">
+        <div class="panel-header">Original</div>
+        <div class="panel-body" id="original-panel"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">Scanned</div>
+        <div class="panel-body" id="scanned-panel"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">Raw Model Output</div>
+        <div class="panel-body" id="debug-panel"></div>
+      </div>
+    </div>
+
+    <div id="actions">
+      <button class="btn btn-primary" id="btn-download">⬇ Download Scan</button>
+      <button class="btn btn-secondary" id="btn-new">Scan Another</button>
+    </div>
+  </main>
+
+  <!-- Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+  <script>
+    // Configure ONNX Runtime WASM paths
+    ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/";
+  </script>
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCVReady()" type="text/javascript">
+  </script>
+
+  <script type="module">
+    import { DocScanner } from './doc-scanner.js';
+
+    // ── State ──────────────────────────────────────────────────────────
+    let scanner = null;
+    let resultCanvas = null;
+
+    // ── DOM refs ──────────────────────────────────────────────────────
+    const initOverlay = document.getElementById("init-overlay");
+    const initStatus = document.getElementById("init-status");
+    const dropZone = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("file-input");
+    const statusBar = document.getElementById("status-bar");
+    const statusText = document.getElementById("status-text");
+    const results = document.getElementById("results");
+    const originalPanel = document.getElementById("original-panel");
+    const scannedPanel = document.getElementById("scanned-panel");
+    const actions = document.getElementById("actions");
+    const btnDownload = document.getElementById("btn-download");
+    const btnNew = document.getElementById("btn-new");
+
+    // ── OpenCV ready callback ─────────────────────────────────────────
+    window.onOpenCVReady = async function () {
+      if (typeof cv !== "undefined" && typeof cv.Mat === "undefined") {
+        await new Promise((resolve) => {
+          cv["onRuntimeInitialized"] = resolve;
+        });
+      }
+      initStatus.textContent = "Loading AI model…";
+      try {
+        scanner = new DocScanner("doc-scanner-js.onnx");
+        await scanner.init();
+        initOverlay.classList.add("hidden");
+      } catch (e) {
+        initStatus.textContent = "⚠ Failed to load model: " + e.message;
+        console.error(e);
+      }
+    };
+
+    // If already loaded
+    if (typeof cv !== 'undefined' && cv.Mat) window.onOpenCVReady();
+
+    // ── Event Handlers ────────────────────────────────────────────────
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) handleImage(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length) handleImage(e.target.files[0]);
+    });
+
+    async function handleImage(file) {
+      if (!scanner) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const img = new Image();
+        img.onload = async () => {
+          // Show original
+          originalPanel.innerHTML = "";
+          originalPanel.appendChild(img.cloneNode());
+
+          results.classList.remove("hidden");
+          dropZone.classList.add("hidden");
+          statusBar.classList.remove("hidden");
+          statusText.textContent = "Analyzing document structure...";
+
+          try {
+            const start = performance.now();
+            const { canvas, dataUrl } = await scanner.scan(img);
+            const end = performance.now();
+
+            resultCanvas = canvas;
+            scannedPanel.innerHTML = "";
+            scannedPanel.appendChild(canvas);
+
+            statusText.textContent = `Done in ${((end - start) / 1000).toFixed(1)}s`;
+            statusBar.classList.add("success");
+            actions.classList.remove("hidden");
+          } catch (err) {
+            statusText.textContent = "Error: " + err.message;
+            console.error(err);
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    btnDownload.addEventListener("click", () => {
+      if (!resultCanvas) return;
+      const link = document.createElement("a");
+      link.download = "scanned_document.png";
+      link.href = resultCanvas.toDataURL();
+      link.click();
+    });
+
+    btnNew.addEventListener("click", () => {
+      results.classList.add("hidden");
+      dropZone.classList.remove("hidden");
+      statusBar.classList.add("hidden");
+      actions.classList.add("hidden");
+      statusBar.classList.remove("success");
+    });
+  </script>
+</body>
+
+</html>
