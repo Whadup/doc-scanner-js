@@ -233,6 +233,31 @@
     }
 
     /* ── Init Overlay ─────────────────────────────────── */
+    #status-bar {
+      margin-bottom: 24px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    #inset-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    #inset-slider {
+      width: 150px;
+      accent-color: #4a90e2;
+    }
+
     #init-overlay {
       position: fixed;
       inset: 0;
@@ -262,6 +287,11 @@
       font-size: 1rem;
       font-weight: 500;
       color: var(--text-dim);
+    }
+
+    /* ── Utilities ────────────────────────────────────── */
+    .hidden {
+      display: none !important;
     }
 
     /* ── Responsive ────────────────────────────────────── */
@@ -294,19 +324,17 @@
     <div id="drop-zone">
       <div class="icon">📄</div>
       <div class="label">Drop a document photo here</div>
-      <div
-        style="margin-top: 15px; font-size: 0.9rem; color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: 8px;"
-        onclick="event.stopPropagation()">
-        <input type="checkbox" id="edge-cleanup" checked>
-        <label for="edge-cleanup">Apply Edge Cleanup (2% Inset)</label>
-      </div>
       <div class="sub">or click to browse · JPG, PNG, WebP</div>
     </div>
     <input type="file" id="file-input" accept="image/*" />
 
     <div id="status-bar">
       <div class="spinner"></div>
-      <span id="status-text">Processing…</span>
+      <div id="status-text">Ready</div>
+      <div id="inset-control" class="hidden">
+        <label for="inset-slider">Edge Inset: <span id="inset-value">0</span>%</label>
+        <input type="range" id="inset-slider" min="0" max="10" step="1" value="0">
+      </div>
     </div>
 
     <div id="results">
@@ -336,7 +364,8 @@
     // Configure ONNX Runtime WASM paths
     ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/";
   </script>
-  <script async src="https://docs.opencv.org/4.9.0/opencv.js" type="text/javascript"></script>
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCVReady()" type="text/javascript">
+  </script>
 
   <script type="module">
     import { DocScanner } from './doc-scanner.js';
@@ -359,25 +388,13 @@
     const btnDownload = document.getElementById("btn-download");
     const btnNew = document.getElementById("btn-new");
 
-    // ── Initialization ───────────────────────────────────────────────
-    async function start() {
-      if (typeof cv === "undefined" || !cv.Mat) {
-        initStatus.textContent = "Loading OpenCV.js…";
+    // ── OpenCV ready callback ─────────────────────────────────────────
+    window.onOpenCVReady = async function () {
+      if (typeof cv !== "undefined" && typeof cv.Mat === "undefined") {
         await new Promise((resolve) => {
-          if (typeof cv !== "undefined") {
-            cv["onRuntimeInitialized"] = resolve;
-          } else {
-            // Poll for cv defined
-            const interval = setInterval(() => {
-              if (typeof cv !== "undefined") {
-                clearInterval(interval);
-                cv["onRuntimeInitialized"] = resolve;
-              }
-            }, 50);
-          }
+          cv["onRuntimeInitialized"] = resolve;
         });
       }
-
       initStatus.textContent = "Loading AI model…";
       try {
         scanner = new DocScanner("doc-scanner-js.onnx");
@@ -387,9 +404,16 @@
         initStatus.textContent = "⚠ Failed to load model: " + e.message;
         console.error(e);
       }
-    }
+    };
 
-    start();
+    // If already loaded
+    if (typeof cv !== 'undefined' && cv.Mat) window.onOpenCVReady();
+
+    const insetSlider = document.getElementById("inset-slider");
+    const insetValSpan = document.getElementById("inset-value");
+    const insetControl = document.getElementById("inset-control");
+
+    let currentImage = null;
 
     // ── Event Handlers ────────────────────────────────────────────────
     dropZone.addEventListener("click", () => fileInput.click());
@@ -407,6 +431,12 @@
       if (e.target.files.length) handleImage(e.target.files[0]);
     });
 
+    insetSlider.addEventListener("input", (e) => {
+      const val = e.target.value;
+      insetValSpan.textContent = val;
+      if (currentImage) runScan(currentImage);
+    });
+
     async function handleImage(file) {
       if (!scanner) return;
 
@@ -414,36 +444,50 @@
       reader.onload = async (e) => {
         const img = new Image();
         img.onload = async () => {
-          // Show original
-          originalPanel.innerHTML = "";
-          originalPanel.appendChild(img.cloneNode());
-
-          results.classList.remove("hidden");
-          dropZone.classList.add("hidden");
-          statusBar.classList.remove("hidden");
-          statusText.textContent = "Analyzing document structure...";
-
-          try {
-            const start = performance.now();
-            const useEdgeCleanup = document.getElementById("edge-cleanup").checked;
-            const { canvas, dataUrl } = await scanner.scan(img, { inset: useEdgeCleanup ? 0.02 : 0 });
-            const end = performance.now();
-
-            resultCanvas = canvas;
-            scannedPanel.innerHTML = "";
-            scannedPanel.appendChild(canvas);
-
-            statusText.textContent = `Done in ${((end - start) / 1000).toFixed(1)}s`;
-            statusBar.classList.add("success");
-            actions.classList.remove("hidden");
-          } catch (err) {
-            statusText.textContent = "Error: " + err.message;
-            console.error(err);
-          }
+          currentImage = img;
+          runScan(img);
         };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
+    }
+
+    async function runScan(img) {
+      // Show original
+      originalPanel.innerHTML = "";
+      originalPanel.appendChild(img.cloneNode());
+
+      results.classList.add("visible");
+      dropZone.classList.add("hidden");
+      statusBar.classList.add("visible");
+      statusBar.querySelector(".spinner").classList.remove("hidden");
+      insetControl.classList.remove("hidden");
+      statusText.textContent = "Analyzing document structure...";
+      statusBar.classList.remove("success");
+
+      try {
+        const inset = parseFloat(insetSlider.value) / 100;
+        const start = performance.now();
+        const { canvas, debugCanvas, dataUrl } = await scanner.scan(img, { inset });
+        const end = performance.now();
+
+        resultCanvas = canvas;
+        scannedPanel.innerHTML = "";
+        scannedPanel.appendChild(canvas);
+
+        const debugPanel = document.getElementById("debug-panel");
+        debugPanel.innerHTML = "";
+        debugPanel.appendChild(debugCanvas);
+
+        statusText.textContent = `Done in ${((end - start) / 1000).toFixed(1)}s`;
+        statusBar.classList.add("success");
+        statusBar.querySelector(".spinner").classList.add("hidden");
+        actions.classList.add("visible");
+      } catch (err) {
+        statusText.textContent = "Error: " + err.message;
+        statusBar.querySelector(".spinner").classList.add("hidden");
+        console.error(err);
+      }
     }
 
     btnDownload.addEventListener("click", () => {
@@ -455,11 +499,13 @@
     });
 
     btnNew.addEventListener("click", () => {
-      results.classList.add("hidden");
+      results.classList.remove("visible");
       dropZone.classList.remove("hidden");
-      statusBar.classList.add("hidden");
-      actions.classList.add("hidden");
+      statusBar.classList.remove("visible");
+      actions.classList.remove("visible");
       statusBar.classList.remove("success");
+      insetControl.classList.add("hidden");
+      currentImage = null;
     });
   </script>
 </body>

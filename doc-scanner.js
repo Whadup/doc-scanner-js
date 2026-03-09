@@ -9,12 +9,13 @@ export class DocScanner {
     /**
      * @param {string} modelPath — URL or path to the ONNX model file
      * @param {object} [options]
+     * @param {number} [options.inset=0] — Fraction of the image to inset from edges (e.g. 0.02 for 2%)
      */
     constructor(modelPath, options = {}) {
         this.modelPath = modelPath;
         this.inputWidth = options.inputWidth || INPUT_WIDTH;
         this.inputHeight = options.inputHeight || INPUT_HEIGHT;
-        this.inset = options.inset || 0; // Default inset ratio (0-1)
+        this.inset = options.inset || 0;
         this.session = null;
         this._cvReady = false;
     }
@@ -53,12 +54,13 @@ export class DocScanner {
     /**
      * Run the dewarping pipeline.
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} imageSource
+     * @param {object} [options] — Override instance options
      * @returns {Promise<{ canvas: HTMLCanvasElement, debugCanvas: HTMLCanvasElement, blob: Blob, dataUrl: string }>}
      */
     async scan(imageSource, options = {}) {
         if (!this.session) throw new Error("Call init() first");
 
-        const inset = options.inset !== undefined ? options.inset : this.inset;
+        const inset = options.hasOwnProperty('inset') ? options.inset : this.inset;
 
         const src = cv.imread(imageSource);
         const origH = src.rows;
@@ -139,52 +141,29 @@ export class DocScanner {
         cv.cvtColor(result8u, resultRGBA, cv.COLOR_RGB2RGBA);
         result8u.delete();
 
+        // Optional Inset Crop
+        let finalMat = resultRGBA;
+        if (inset > 0) {
+            const marginX = Math.floor(origW * inset);
+            const marginY = Math.floor(origH * inset);
+            const rect = new cv.Rect(marginX, marginY, origW - 2 * marginX, origH - 2 * marginY);
+            finalMat = resultRGBA.roi(rect);
+        }
+
         const canvas = document.createElement("canvas");
-        canvas.width = origW;
-        canvas.height = origH;
-        cv.imshow(canvas, resultRGBA);
+        canvas.width = finalMat.cols;
+        canvas.height = finalMat.rows;
+        cv.imshow(canvas, finalMat);
 
         const dataUrl = canvas.toDataURL("image/png");
         const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
 
-        // 6. Optional Inset (Crop)
-        let finalCanvas = canvas;
-        let finalBlob = blob;
-        let finalDataUrl = dataUrl;
-
-        if (inset > 0) {
-            const insetX = Math.floor(origW * inset);
-            const insetY = Math.floor(origH * inset);
-            const newW = origW - 2 * insetX;
-            const newH = origH - 2 * insetY;
-
-            if (newW > 0 && newH > 0) {
-                const roi = new cv.Rect(insetX, insetY, newW, newH);
-                const croppedMat = resultRGBA.roi(roi);
-
-                const cropCanvas = document.createElement("canvas");
-                cropCanvas.width = newW;
-                cropCanvas.height = newH;
-                cv.imshow(cropCanvas, croppedMat);
-
-                finalCanvas = cropCanvas;
-                finalDataUrl = cropCanvas.toDataURL("image/png");
-                finalBlob = await new Promise(resolve => cropCanvas.toBlob(resolve, "image/png"));
-                croppedMat.delete();
-            }
-        }
-
         // Cleanup
         src.delete();
         resultRGBA.delete();
+        if (finalMat !== resultRGBA) finalMat.delete();
 
-        return {
-            canvas: finalCanvas,
-            debugCanvas: debugCanvas,
-            blob: finalBlob,
-            dataUrl: finalDataUrl,
-            originalCanvas: canvas // preserve original for reference
-        };
+        return { canvas, debugCanvas, blob, dataUrl };
     }
 
     _generateDebugCanvas(bmData, width, height) {

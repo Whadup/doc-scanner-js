@@ -31,7 +31,9 @@ The easiest way to use the library is via the `useDocScanner` hook.
 import { useDocScanner } from './hooks/useDocScanner';
 
 function App() {
-  const { scan, isReady, isLoading, error } = useDocScanner('/models/doc-scanner-js.onnx');
+  const { scan, isReady, isLoading, error } = useDocScanner('/models/doc-scanner-js.onnx', {
+    inset: 0.02 // Optional: 2% default inset to clean up corner glitches
+  });
 
   const handleFile = async (e) => {
     const file = e.target.files[0];
@@ -57,26 +59,12 @@ function App() {
 ```javascript
 import { DocScanner } from './doc-scanner.js';
 
-// Set a default inset of 2% for all scans
-const scanner = new DocScanner("doc-scanner-js.onnx", { inset: 0.02 });
+const scanner = new DocScanner("doc-scanner-js.onnx", { inset: 0.02 }); // 2% inset by default
 await scanner.init();
 
-// Or override per scan
-const { canvas } = await scanner.scan(img, { inset: 0.03 });
+// You can also override it per-scan
+const { canvas } = await scanner.scan(imgElement, { inset: 0.05 }); 
 ```
-
-## API Reference
-
-### `DocScanner`
-- `constructor(modelPath, options)`
-  - `options.inset`: (Default `0`) Ratio (0 to 1) to inset the final crop. Recommended `0.02` (2%) to remove corner glitches.
-- `init()`: Loads the model and initializes OpenCV.
-- `scan(imageSource, options)`: Returns `{ canvas, debugCanvas, blob, dataUrl }`.
-  - `options.inset`: Overrides the default inset for this specific scan.
-- `dispose()`: Releases WASM memory.
-
-### `useDocScanner(modelPath, options)`
-- `scan(source, options)`: The scan function. Supports `{ inset }` overrides.
 
 ---
 
