@@ -10,6 +10,7 @@ export class DocScanner {
      * @param {string} modelPath — URL or path to the ONNX model file
      * @param {object} [options]
      * @param {number} [options.inset=0] — Fraction of the image to inset from edges (e.g. 0.02 for 2%)
+     * @param {boolean} [options.enhance=false] — Apply professional scan enhancement
      */
     constructor(modelPath, options = {}) {
         this.modelPath = modelPath;
@@ -55,13 +56,15 @@ export class DocScanner {
      * Run the dewarping pipeline.
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} imageSource
      * @param {object} [options] — Override instance options
+     * @param {number} [options.inset]
+     * @param {boolean} [options.enhance]
      * @returns {Promise<{ canvas: HTMLCanvasElement, debugCanvas: HTMLCanvasElement, blob: Blob, dataUrl: string }>}
      */
     async scan(imageSource, options = {}) {
         if (!this.session) throw new Error("Call init() first");
 
         const inset = options.hasOwnProperty('inset') ? options.inset : this.inset;
-        const enhance = options.enhance || false; // boolean (deprecated), 'levels', or 'scan'
+        const enhance = options.enhance || false; // apply scan enhancement pipeline
 
         const src = cv.imread(imageSource);
         const origH = src.rows;
