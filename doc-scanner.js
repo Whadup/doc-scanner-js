@@ -61,6 +61,7 @@ export class DocScanner {
         if (!this.session) throw new Error("Call init() first");
 
         const inset = options.hasOwnProperty('inset') ? options.inset : this.inset;
+        const enhance = options.enhance || false; // boolean (deprecated), 'levels', or 'scan'
 
         const src = cv.imread(imageSource);
         const origH = src.rows;
@@ -137,6 +138,11 @@ export class DocScanner {
         dst.convertTo(result8u, cv.CV_8UC3, 255.0);
         dst.delete();
 
+        // 6. Enhancement
+        if (enhance) {
+            this._enhanceScan(result8u);
+        }
+
         const resultRGBA = new cv.Mat();
         cv.cvtColor(result8u, resultRGBA, cv.COLOR_RGB2RGBA);
         result8u.delete();
@@ -164,6 +170,96 @@ export class DocScanner {
         if (finalMat !== resultRGBA) finalMat.delete();
 
         return { canvas, debugCanvas, blob, dataUrl };
+    }
+
+    /**
+     * Professional Scan Enhancement:
+     * Combines morphological background flattening and CLAHE.
+     * @private
+     */
+    _enhanceScan(mat) {
+        // 1. Local Background Flattening (Multi-scale illumination correction)
+        this._flattenBackground(mat);
+
+        // 2. CLAHE (Contrast Limited Adaptive Histogram Equalization)
+        const lab = new cv.Mat();
+        cv.cvtColor(mat, lab, cv.COLOR_RGB2Lab);
+
+        const channels = new cv.MatVector();
+        cv.split(lab, channels);
+        const lChannel = channels.get(0);
+
+        // Lower clipLimit (1.5) to avoid harsh artifacts and noise amplification
+        const clahe = new cv.CLAHE(1.5, new cv.Size(8, 8));
+        clahe.apply(lChannel, lChannel);
+        clahe.delete();
+
+        // Optional: Slight gamma compression to clean up paper noise
+        // Map 245-255 to 255
+        const lut = new cv.Mat(1, 256, cv.CV_8U);
+        const lutData = lut.data;
+        for (let i = 0; i < 256; i++) {
+            if (i > 240) lutData[i] = 255;
+            else lutData[i] = i;
+        }
+        cv.LUT(lChannel, lut, lChannel);
+        lut.delete();
+
+        channels.set(0, lChannel);
+        cv.merge(channels, lab);
+        cv.cvtColor(lab, mat, cv.COLOR_Lab2RGB);
+
+        lab.delete();
+        channels.delete();
+        lChannel.delete();
+    }
+
+    /**
+     * Flattens uneven lighting by normalizing against a smooth illumination map.
+     * This avoids halos around text by using a large-scale estimation.
+     * @private
+     */
+    _flattenBackground(mat) {
+        const gray = new cv.Mat();
+        cv.cvtColor(mat, gray, cv.COLOR_RGB2GRAY);
+
+        // 1. Create a downsampled illumination map to ignore local details (text)
+        const scale = 0.25;
+        const small = new cv.Mat();
+        cv.resize(gray, small, new cv.Size(0, 0), scale, scale, cv.INTER_AREA);
+
+        // 2. Strong smoothing on the thumbnail
+        const blurSize = Math.max(21, Math.floor(small.cols / 10)) | 1; // ~10% of width
+        cv.medianBlur(small, small, blurSize % 2 === 0 ? blurSize + 1 : blurSize);
+        cv.GaussianBlur(small, small, new cv.Size(blurSize, blurSize), 0);
+
+        // 3. Upscale the smooth map back to original size
+        const illumination = new cv.Mat();
+        cv.resize(small, illumination, gray.size(), 0, 0, cv.INTER_LINEAR);
+
+        // 4. Normalize the original image using division
+        // result = original / illumination * 255
+        const lab = new cv.Mat();
+        cv.cvtColor(mat, lab, cv.COLOR_RGB2Lab);
+        const channels = new cv.MatVector();
+        cv.split(lab, channels);
+        const lChannel = channels.get(0);
+
+        const normalizedL = new cv.Mat();
+        cv.divide(lChannel, illumination, normalizedL, 255);
+
+        channels.set(0, normalizedL);
+        cv.merge(channels, lab);
+        cv.cvtColor(lab, mat, cv.COLOR_Lab2RGB);
+
+        // Cleanup
+        gray.delete();
+        small.delete();
+        illumination.delete();
+        lab.delete();
+        channels.delete();
+        lChannel.delete();
+        normalizedL.delete();
     }
 
     _generateDebugCanvas(bmData, width, height) {

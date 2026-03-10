@@ -23,7 +23,33 @@ Copy `doc-scanner.js`, `react-hook.js`, and `doc-scanner-js.onnx` into your proj
 
 ---
 
-## Usage in React
+## Usage
+
+The core `DocScanner` class provides the main functionality.
+
+```javascript
+import { DocScanner } from './doc-scanner.js';
+
+const scanner = new DocScanner("doc-scanner-js.onnx", { inset: 0.02 }); // 2% inset by default
+await scanner.init();
+
+// You can also override it per-scan
+const { canvas, blob } = await scanner.scan(imgElement, { 
+  inset: 0.05,
+  enhance: true // apply professional scan enhancement
+});
+```
+
+### Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `inset` | `number` | `0` | Fraction of the image to inset from edges (e.g. `0.02` for 2%). Helps remove corner glitches. |
+| `enhance` | `boolean` | `false` | Apply professional scan enhancement (whitens background, improves contrast, removes shadows). |
+
+---
+
+## React Usage
 
 The easiest way to use the library is via the `useDocScanner` hook.
 
@@ -32,7 +58,8 @@ import { useDocScanner } from './hooks/useDocScanner';
 
 function App() {
   const { scan, isReady, isLoading, error } = useDocScanner('/models/doc-scanner-js.onnx', {
-    inset: 0.02 // Optional: 2% default inset to clean up corner glitches
+    inset: 0.02,
+    enhance: true // apply enhancement by default
   });
 
   const handleFile = async (e) => {
@@ -40,7 +67,7 @@ function App() {
     const img = await loadImage(file); // helper to create HTMLImageElement
     
     // Scan returns a high-level result object
-    const { canvas, blob, dataUrl } = await scan(img);
+    const { canvas, blob, dataUrl } = await scan(img, { enhance: true }); // or override per-scan
     
     console.log("Processed image:", dataUrl);
   };
@@ -54,16 +81,6 @@ function App() {
     </div>
   );
 }
-```
-
-```javascript
-import { DocScanner } from './doc-scanner.js';
-
-const scanner = new DocScanner("doc-scanner-js.onnx", { inset: 0.02 }); // 2% inset by default
-await scanner.init();
-
-// You can also override it per-scan
-const { canvas } = await scanner.scan(imgElement, { inset: 0.05 }); 
 ```
 
 ---

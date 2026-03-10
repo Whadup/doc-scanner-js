@@ -248,15 +248,80 @@
     #inset-control {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 24px;
       font-size: 14px;
-      opacity: 0.8;
+      opacity: 0.9;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     #inset-slider {
-      width: 150px;
-      accent-color: #4a90e2;
+      width: 120px;
+      accent-color: var(--accent);
     }
+
+    /* ── Checkbox Styling ───────────────────────────── */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      position: relative;
+      padding-left: 28px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-container input {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      height: 0;
+      width: 0;
+    }
+
+    .checkmark {
+      position: absolute;
+      top: -1px;
+      left: 0;
+      height: 18px;
+      width: 18px;
+      background-color: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .checkbox-container:hover input~.checkmark {
+      background-color: var(--border);
+    }
+
+    .checkbox-container input:checked~.checkmark {
+      background-color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .checkmark:after {
+      content: "";
+      position: absolute;
+      display: none;
+    }
+
+    .checkbox-container input:checked~.checkmark:after {
+      display: block;
+    }
+
+    .checkbox-container .checkmark:after {
+      left: 6px;
+      top: 2px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
 
     #init-overlay {
       position: fixed;
@@ -332,8 +397,17 @@
       <div class="spinner"></div>
       <div id="status-text">Ready</div>
       <div id="inset-control" class="hidden">
-        <label for="inset-slider">Edge Inset: <span id="inset-value">0</span>%</label>
-        <input type="range" id="inset-slider" min="0" max="10" step="1" value="0">
+        <div class="control-group">
+          <label for="inset-slider">Edge Inset: <span id="inset-value">0</span>%</label>
+          <input type="range" id="inset-slider" min="0" max="10" step="1" value="0">
+        </div>
+        <div class="control-group">
+          <label class="checkbox-container">
+            <input type="checkbox" id="enhance-checkbox" checked>
+            <span class="checkmark"></span>
+            Enhance Scan
+          </label>
+        </div>
       </div>
     </div>
 
@@ -413,6 +487,8 @@
     const insetValSpan = document.getElementById("inset-value");
     const insetControl = document.getElementById("inset-control");
 
+    const enhanceCheckbox = document.getElementById("enhance-checkbox");
+
     let currentImage = null;
 
     // ── Event Handlers ────────────────────────────────────────────────
@@ -434,6 +510,10 @@
     insetSlider.addEventListener("input", (e) => {
       const val = e.target.value;
       insetValSpan.textContent = val;
+      if (currentImage) runScan(currentImage);
+    });
+
+    enhanceCheckbox.addEventListener("change", () => {
       if (currentImage) runScan(currentImage);
     });
 
@@ -467,8 +547,9 @@
 
       try {
         const inset = parseFloat(insetSlider.value) / 100;
+        const enhance = enhanceCheckbox.checked;
         const start = performance.now();
-        const { canvas, debugCanvas, dataUrl } = await scanner.scan(img, { inset });
+        const { canvas, debugCanvas, dataUrl } = await scanner.scan(img, { inset, enhance });
         const end = performance.now();
 
         resultCanvas = canvas;
