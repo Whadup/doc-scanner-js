@@ -265,6 +265,7 @@ export class DocScanner {
         // 2. Geometric Transform
         console.log("[DocScanner] Running Best Geometric Dewarping...");
         const feedsGeo = { input: new ort.Tensor("float32", maskedData, [1, 3, 288, 288]) };
+        const resultsGeo = await this.sessions.geo.run(feedsGeo);
         if (!resultsGeo || !Object.values(resultsGeo)[0]) throw new Error("Geometric model failed to produce output");
         const bmData = Object.values(resultsGeo)[0].data;
 
