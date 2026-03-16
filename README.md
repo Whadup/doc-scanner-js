@@ -5,7 +5,7 @@ A high-performance, client-side document dewarping library for modern web applic
 ## Features
 - **Client-side Processing**: No server-side processing or data transmission.
 - **High Fidelity**: Specialized geometric rectification model.
-- **Optimized**: 7.6MB quantized model for fast web delivery.
+- **Optimized**: Choice of a lightweight 8.0MB model for speed or a 43.3MB model for maximum structural accuracy.
 - **Modern API**: ESM-first with a dedicated React Hook.
 
 ## Installation
@@ -19,7 +19,7 @@ Add the following scripts to your `index.html` (required for WASM acceleration):
 ```
 
 ### 2. Copy the library
-Copy `doc-scanner.js`, `react-hook.js`, and `doc-scanner-js.onnx` into your project.
+Copy `doc-scanner.js`, `react-hook.js`, and the `models/` folder into your project.
 
 ---
 
@@ -47,10 +47,10 @@ const { canvas, blob } = await scanner.scan(imgElement, {
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `type` | `string` | `'best'` | `'fast'` (UVDoc) or `'best'` (DocTr). |
+| `type` | `string` | `'best'` | `'fast'` (8.0MB model) or `'best'` (43.3MB model). |
 | `inset` | `number` | `0` | Fraction of the image to inset from edges (e.g. `0.02` for 2%). |
 | `enhance` | `boolean` | `false` | Apply classical scan enhancement (whitens background, improves contrast). |
-| `useMask` | `boolean` | `false` | For `'fast'` engine: applies segmentation mask before dewarping. |
+| `useMask` | `boolean` | `false` | When using the `'fast'` engine, applies a segmentation mask before dewarping. |
 
 ### Diagnostic API
 
@@ -66,7 +66,12 @@ const { canvas, blob } = await scanner.getMask(imgElement);
 The easiest way to use the library is via the `useDocScanner` hook.
 
 ```jsx
-import { useDocScanner } from './hooks/useDocScanner';
+import { useDocScanner } from './react-hook.js';
+
+const config = {
+  seg: 'models/seg.onnx',
+  geo: 'models/best.onnx'
+};
 
 function App() {
   const { scan, isReady, isLoading, error } = useDocScanner(config, {
@@ -107,7 +112,12 @@ You can use the library directly in the browser via **unpkg** or **jsDelivr**. S
   // Load the library directly from jsDelivr (GitHub Proxy)
   import { DocScanner } from 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner.js';
 
-  const scanner = new DocScanner('https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner-js.onnx');
+  const config = {
+    seg: 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/models/seg.onnx',
+    geo: 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/models/best.onnx'
+  };
+
+  const scanner = new DocScanner(config, { type: 'best' });
   await scanner.init();
   
   // ... scan logic ...
