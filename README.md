@@ -30,22 +30,34 @@ The core `DocScanner` class provides the main functionality.
 ```javascript
 import { DocScanner } from './doc-scanner.js';
 
-const scanner = new DocScanner("doc-scanner-js.onnx", { inset: 0.02 }); // 2% inset by default
+const config = {
+  seg: 'models/doctr-seg-quant.onnx',
+  geo: 'models/doctr-geotr-quant.onnx'
+};
+
+const scanner = new DocScanner(config, { type: 'best' }); 
 await scanner.init();
 
-// You can also override it per-scan
+// Scan returns a high-level result object
 const { canvas, blob } = await scanner.scan(imgElement, { 
-  inset: 0.05,
-  enhance: true // apply professional scan enhancement
+  enhance: true, // apply scan enhancement
+  useMask: true  // explicitly use segmentation mask
 });
 ```
 
-### Options
-
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `inset` | `number` | `0` | Fraction of the image to inset from edges (e.g. `0.02` for 2%). Helps remove corner glitches. |
-| `enhance` | `boolean` | `false` | Apply professional scan enhancement (whitens background, improves contrast, removes shadows). |
+| `type` | `string` | `'best'` | `'fast'` (UVDoc) or `'best'` (DocTr). |
+| `inset` | `number` | `0` | Fraction of the image to inset from edges (e.g. `0.02` for 2%). |
+| `enhance` | `boolean` | `false` | Apply classical scan enhancement (whitens background, improves contrast). |
+| `useMask` | `boolean` | `false` | For `'fast'` engine: applies segmentation mask before dewarping. |
+
+### Diagnostic API
+
+```javascript
+// Get the 8-bit segmentation mask directly
+const { canvas, blob } = await scanner.getMask(imgElement);
+```
 
 ---
 
@@ -57,9 +69,9 @@ The easiest way to use the library is via the `useDocScanner` hook.
 import { useDocScanner } from './hooks/useDocScanner';
 
 function App() {
-  const { scan, isReady, isLoading, error } = useDocScanner('/models/doc-scanner-js.onnx', {
-    inset: 0.02,
-    enhance: true // apply enhancement by default
+  const { scan, isReady, isLoading, error } = useDocScanner(config, {
+    type: 'best',
+    enhance: true
   });
 
   const handleFile = async (e) => {

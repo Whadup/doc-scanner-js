@@ -48,6 +48,7 @@
       font-weight: 700;
       background: linear-gradient(135deg, #6c8cff, #a78bfa, #f472b6);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: -0.5px;
     }
@@ -396,17 +397,37 @@
     <div id="status-bar">
       <div class="spinner"></div>
       <div id="status-text">Ready</div>
-      <div id="inset-control" class="hidden">
-        <div class="control-group">
-          <label for="inset-slider">Edge Inset: <span id="inset-value">0</span>%</label>
-          <input type="range" id="inset-slider" min="0" max="10" step="1" value="0">
-        </div>
-        <div class="control-group">
-          <label class="checkbox-container">
-            <input type="checkbox" id="enhance-checkbox" checked>
-            <span class="checkmark"></span>
-            Enhance Scan
-          </label>
+      <div id="controls" class="hidden">
+        <div id="inset-control" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+          <div style="display: flex; gap: 24px;">
+            <div class="control-group">
+              <label for="model-select">Model:</label>
+              <select id="model-select" style="background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 13px;">
+                <option value="fast">Fast</option>
+                <option value="best" selected>Best</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="inset-slider">Edge Inset: <span id="inset-value">0</span>%</label>
+              <input type="range" id="inset-slider" min="0" max="10" step="1" value="0">
+            </div>
+          </div>
+          <div style="display: flex; gap: 24px;">
+            <div class="control-group">
+              <label class="checkbox-container">
+                <input type="checkbox" id="enhance-checkbox">
+                <span class="checkmark"></span>
+                Enhance Scan (Slower)
+              </label>
+            </div>
+            <div class="control-group" id="masking-control">
+              <label class="checkbox-container">
+                <input type="checkbox" id="masking-checkbox">
+                <span class="checkmark"></span>
+                Use Segmentation Mask
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -428,17 +449,18 @@
 
     <div id="actions">
       <button class="btn btn-primary" id="btn-download">⬇ Download Scan</button>
+      <button class="btn btn-secondary" id="btn-show-mask">🔍 Show Mask</button>
       <button class="btn btn-secondary" id="btn-new">Scan Another</button>
     </div>
   </main>
 
   <!-- Dependencies -->
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js"></script>
   <script>
     // Configure ONNX Runtime WASM paths
-    ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/";
+    ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/";
   </script>
-  <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCVReady()" type="text/javascript">
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js" type="text/javascript">
   </script>
 
   <script type="module">
@@ -447,6 +469,7 @@
     // ── State ──────────────────────────────────────────────────────────
     let scanner = null;
     let resultCanvas = null;
+    let currentModelType = 'best';
 
     // ── DOM refs ──────────────────────────────────────────────────────
     const initOverlay = document.getElementById("init-overlay");
@@ -461,31 +484,73 @@
     const actions = document.getElementById("actions");
     const btnDownload = document.getElementById("btn-download");
     const btnNew = document.getElementById("btn-new");
+    const modelSelect = document.getElementById("model-select");
+    const controls = document.getElementById("controls");
 
-    // ── OpenCV ready callback ─────────────────────────────────────────
-    window.onOpenCVReady = async function () {
-      if (typeof cv !== "undefined" && typeof cv.Mat === "undefined") {
-        await new Promise((resolve) => {
-          cv["onRuntimeInitialized"] = resolve;
-        });
+    // ── Model Initialization ──────────────────────────────────────────
+    async function initScanner(type) {
+      if (scanner) {
+        scanner.dispose();
       }
-      initStatus.textContent = "Loading AI model…";
+      
+      let config;
+      if (type === 'fast') {
+        config = {
+          main: 'models/uvdoc-quant.onnx',
+          seg: 'models/doctr-seg-quant.onnx'
+        };
+      } else {
+        config = {
+          seg: 'models/doctr-seg-quant.onnx',
+          geo: 'models/doctr-geotr-quant.onnx'
+        };
+      }
+      
+      scanner = new DocScanner(config, { type });
+      await scanner.init();
+      currentModelType = type;
+    }
+
+    // ── Initialization ───────────────────────────────────────────────
+    (async function init() {
+      initStatus.textContent = "Loading OpenCV.js…";
+      
+      // Wait for OpenCV
+      while (typeof cv === 'undefined' || !cv.Mat) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      initStatus.textContent = "Loading AI models…";
       try {
-        scanner = new DocScanner("doc-scanner-js.onnx");
-        await scanner.init();
+        await initScanner('best');
         initOverlay.classList.add("hidden");
       } catch (e) {
-        initStatus.textContent = "⚠ Failed to load model: " + e.message;
+        initStatus.textContent = "⚠ Failed to load models: " + e.message;
         console.error(e);
       }
-    };
-
-    // If already loaded
-    if (typeof cv !== 'undefined' && cv.Mat) window.onOpenCVReady();
+    })();
 
     const insetSlider = document.getElementById("inset-slider");
     const insetValSpan = document.getElementById("inset-value");
-    const insetControl = document.getElementById("inset-control");
+
+    modelSelect.addEventListener("change", async (e) => {
+      const type = e.target.value;
+      if (type === currentModelType) return;
+      
+      statusBar.classList.add("visible");
+      statusText.textContent = `Switching to ${type}...`;
+      statusBar.querySelector(".spinner").classList.remove("hidden");
+      
+      try {
+        await initScanner(type);
+        statusText.textContent = "Ready";
+        statusBar.querySelector(".spinner").classList.add("hidden");
+        if (currentImage) runScan(currentImage);
+      } catch (err) {
+        statusText.textContent = "Error loading model: " + err.message;
+        console.error(err);
+      }
+    });
 
     const enhanceCheckbox = document.getElementById("enhance-checkbox");
 
@@ -513,7 +578,13 @@
       if (currentImage) runScan(currentImage);
     });
 
+    const maskingCheckbox = document.getElementById("masking-checkbox");
+
     enhanceCheckbox.addEventListener("change", () => {
+      if (currentImage) runScan(currentImage);
+    });
+
+    maskingCheckbox.addEventListener("change", () => {
       if (currentImage) runScan(currentImage);
     });
 
@@ -533,6 +604,7 @@
     }
 
     async function runScan(img) {
+      console.log("[Demo] Starting scan process...");
       // Show original
       originalPanel.innerHTML = "";
       originalPanel.appendChild(img.cloneNode());
@@ -541,15 +613,17 @@
       dropZone.classList.add("hidden");
       statusBar.classList.add("visible");
       statusBar.querySelector(".spinner").classList.remove("hidden");
-      insetControl.classList.remove("hidden");
+      controls.classList.remove("hidden");
       statusText.textContent = "Analyzing document structure...";
       statusBar.classList.remove("success");
 
       try {
         const inset = parseFloat(insetSlider.value) / 100;
         const enhance = enhanceCheckbox.checked;
+        const useMask = maskingCheckbox.checked;
+        
         const start = performance.now();
-        const { canvas, debugCanvas, dataUrl } = await scanner.scan(img, { inset, enhance });
+        const { canvas, debugCanvas, dataUrl } = await scanner.scan(img, { inset, enhance, useMask });
         const end = performance.now();
 
         resultCanvas = canvas;
@@ -579,13 +653,27 @@
       link.click();
     });
 
+    document.getElementById("btn-show-mask").addEventListener("click", async () => {
+      if (!currentImage || !scanner) return;
+      statusText.textContent = "Extracting mask...";
+      try {
+        const { canvas } = await scanner.getMask(currentImage);
+        scannedPanel.innerHTML = "";
+        scannedPanel.appendChild(canvas);
+        statusText.textContent = "Mask displayed";
+      } catch (err) {
+        statusText.textContent = "Mask Error: " + err.message;
+        console.error(err);
+      }
+    });
+
     btnNew.addEventListener("click", () => {
       results.classList.remove("visible");
       dropZone.classList.remove("hidden");
       statusBar.classList.remove("visible");
       actions.classList.remove("visible");
       statusBar.classList.remove("success");
-      insetControl.classList.add("hidden");
+      controls.classList.add("hidden");
       currentImage = null;
     });
   </script>
