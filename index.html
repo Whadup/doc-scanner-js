@@ -496,13 +496,13 @@
       let config;
       if (type === 'fast') {
         config = {
-          main: 'models/uvdoc-quant.onnx',
-          seg: 'models/doctr-seg-quant.onnx'
+          main: 'models/fast.onnx',
+          seg: 'models/seg.onnx'
         };
       } else {
         config = {
-          seg: 'models/doctr-seg-quant.onnx',
-          geo: 'models/doctr-geotr-quant.onnx'
+          seg: 'models/seg.onnx',
+          geo: 'models/best.onnx'
         };
       }
       

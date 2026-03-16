@@ -31,8 +31,8 @@ The core `DocScanner` class provides the main functionality.
 import { DocScanner } from './doc-scanner.js';
 
 const config = {
-  seg: 'models/doctr-seg-quant.onnx',
-  geo: 'models/doctr-geotr-quant.onnx'
+  seg: 'models/seg.onnx',
+  geo: 'models/best.onnx'
 };
 
 const scanner = new DocScanner(config, { type: 'best' }); 
