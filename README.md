@@ -5,7 +5,7 @@ A high-performance, client-side document dewarping library for modern web applic
 ## Features
 - **Client-side Processing**: No server-side processing or data transmission.
 - **High Fidelity**: Specialized geometric rectification model.
-- **Optimized**: 7.6MB quantized model for fast web delivery.
+- **Optimized**: Choice of a lightweight 8.0MB model for speed or a 43.3MB model for maximum structural accuracy.
 - **Modern API**: ESM-first with a dedicated React Hook.
 
 ## Installation
@@ -19,7 +19,7 @@ Add the following scripts to your `index.html` (required for WASM acceleration):
 ```
 
 ### 2. Copy the library
-Copy `doc-scanner.js`, `react-hook.js`, and `doc-scanner-js.onnx` into your project.
+Copy `doc-scanner.js`, `react-hook.js`, and the `models/` folder into your project.
 
 ---
 
@@ -30,22 +30,34 @@ The core `DocScanner` class provides the main functionality.
 ```javascript
 import { DocScanner } from './doc-scanner.js';
 
-const scanner = new DocScanner("doc-scanner-js.onnx", { inset: 0.02 }); // 2% inset by default
+const config = {
+  seg: 'models/seg.onnx',
+  geo: 'models/best.onnx'
+};
+
+const scanner = new DocScanner(config, { type: 'best' }); 
 await scanner.init();
 
-// You can also override it per-scan
+// Scan returns a high-level result object
 const { canvas, blob } = await scanner.scan(imgElement, { 
-  inset: 0.05,
-  enhance: true // apply professional scan enhancement
+  enhance: true, // apply scan enhancement
+  useMask: true  // explicitly use segmentation mask
 });
 ```
 
-### Options
-
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `inset` | `number` | `0` | Fraction of the image to inset from edges (e.g. `0.02` for 2%). Helps remove corner glitches. |
-| `enhance` | `boolean` | `false` | Apply professional scan enhancement (whitens background, improves contrast, removes shadows). |
+| `type` | `string` | `'best'` | `'fast'` (8.0MB model) or `'best'` (43.3MB model). |
+| `inset` | `number` | `0` | Fraction of the image to inset from edges (e.g. `0.02` for 2%). |
+| `enhance` | `boolean` | `false` | Apply classical scan enhancement (whitens background, improves contrast). |
+| `useMask` | `boolean` | `false` | When using the `'fast'` engine, applies a segmentation mask before dewarping. |
+
+### Diagnostic API
+
+```javascript
+// Get the 8-bit segmentation mask directly
+const { canvas, blob } = await scanner.getMask(imgElement);
+```
 
 ---
 
@@ -54,12 +66,17 @@ const { canvas, blob } = await scanner.scan(imgElement, {
 The easiest way to use the library is via the `useDocScanner` hook.
 
 ```jsx
-import { useDocScanner } from './hooks/useDocScanner';
+import { useDocScanner } from './react-hook.js';
+
+const config = {
+  seg: 'models/seg.onnx',
+  geo: 'models/best.onnx'
+};
 
 function App() {
-  const { scan, isReady, isLoading, error } = useDocScanner('/models/doc-scanner-js.onnx', {
-    inset: 0.02,
-    enhance: true // apply enhancement by default
+  const { scan, isReady, isLoading, error } = useDocScanner(config, {
+    type: 'best',
+    enhance: true
   });
 
   const handleFile = async (e) => {
@@ -95,7 +112,12 @@ You can use the library directly in the browser via **unpkg** or **jsDelivr**. S
   // Load the library directly from jsDelivr (GitHub Proxy)
   import { DocScanner } from 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner.js';
 
-  const scanner = new DocScanner('https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/doc-scanner-js.onnx');
+  const config = {
+    seg: 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/models/seg.onnx',
+    geo: 'https://cdn.jsdelivr.net/gh/Whadup/doc-scanner-js@main/models/best.onnx'
+  };
+
+  const scanner = new DocScanner(config, { type: 'best' });
   await scanner.init();
   
   // ... scan logic ...

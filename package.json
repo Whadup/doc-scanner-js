@@ -26,6 +26,9 @@
     "author": "Antigravity AI",
     "license": "MIT",
     "peerDependencies": {
-        "onnxruntime-web": "^1.17.0"
+        "onnxruntime-web": "^1.19.0"
+    },
+    "dependencies": {
+        "onnxruntime-node": "^1.24.3"
     }
 }
