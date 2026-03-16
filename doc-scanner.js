@@ -265,10 +265,12 @@ export class DocScanner {
         // 2. Geometric Transform
         console.log("[DocScanner] Running Best Geometric Dewarping...");
         const feedsGeo = { input: new ort.Tensor("float32", maskedData, [1, 3, 288, 288]) };
-        const resultsGeo = await this.sessions.geo.run(feedsGeo);
+        if (!resultsGeo || !Object.values(resultsGeo)[0]) throw new Error("Geometric model failed to produce output");
         const bmData = Object.values(resultsGeo)[0].data;
 
         const gridSize = 288 * 288;
+        console.log(`[DocScanner] bmData size: ${bmData.length}, target gridSize: ${2 * gridSize}`);
+        
         // Normalize coordinates from [0, 287] pixels to normalized [-1, 1] range
         const bmDataNormalized = new Float32Array(bmData.length);
         for (let i = 0; i < bmData.length; i++) {
@@ -290,9 +292,9 @@ export class DocScanner {
         cv.resize(bm1Mat, bm1Resized, new cv.Size(origW, origH), 0, 0, cv.INTER_LINEAR);
         bm0Mat.delete(); bm1Mat.delete();
 
-        console.log("[DocScanner] Generating coordinate maps...");
-        const mapX = new cv.Mat();
-        const mapY = new cv.Mat();
+        console.log(`[DocScanner] Generating coordinate maps (${origW}x${origH})...`);
+        const mapX = new cv.Mat(origH, origW, cv.CV_32F);
+        const mapY = new cv.Mat(origH, origW, cv.CV_32F);
         const alphaX = (origW - 1) / 2;
         const alphaY = (origH - 1) / 2;
         

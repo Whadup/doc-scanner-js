@@ -639,9 +639,14 @@
         statusBar.querySelector(".spinner").classList.add("hidden");
         actions.classList.add("visible");
       } catch (err) {
-        statusText.textContent = "Error: " + err.message;
+        let msg = err.message || err;
+        if (typeof err === 'number') {
+            try { msg = cv.exceptionFromPtr(err).msg; } catch(e) { msg = "OpenCV Error " + err; }
+        }
+        statusText.textContent = "Error: " + msg;
         statusBar.querySelector(".spinner").classList.add("hidden");
-        console.error(err);
+        console.error("Scan Error:", err);
+        if (typeof err === 'number') console.error("OpenCV Msg:", msg);
       }
     }
 
